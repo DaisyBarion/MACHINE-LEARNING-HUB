@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 export default function NotifPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // 'all', 'like', 'comment'
   const router = useRouter();
   const channelRef = useRef(null);
 
@@ -26,7 +27,6 @@ export default function NotifPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Initial Fetch
       const { data, error } = await supabase
         .from('notifications')
         .select(`*, articles ( title )`)
@@ -39,7 +39,6 @@ export default function NotifPage() {
       }
       setLoading(false);
 
-      // 2. Real-time setup
       if (!channelRef.current) {
         channelRef.current = supabase.channel(`notif-feed-${user.id}`)
           .on('postgres_changes', { 
@@ -60,7 +59,6 @@ export default function NotifPage() {
                   .from('articles').select('title').eq('id', newNotif.article_id).single();
                 newNotif.articles = artData;
               }
-
               setNotifications(prev => [newNotif, ...prev]);
               markAllAsRead(user.id);
             }
@@ -79,26 +77,54 @@ export default function NotifPage() {
     };
   }, []);
 
+  // Logic to filter the notifications shown in the UI
+  const filteredNotifications = notifications.filter(n => {
+    if (filter === 'all') return true;
+    if (filter === 'like') return n.type === 'react' || n.type === 'like';
+    if (filter === 'comment') return n.type === 'comment' || n.type === 'reply';
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-[#1A202C] text-white p-6">
       <div className="max-w-xl mx-auto">
-        <header className="flex justify-between items-center mb-10">
+        <header className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-black tracking-tighter">NOTIFICATIONS</h1>
           <button onClick={() => router.push("/dashboard")} className="text-[10px] font-black border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all">BACK</button>
         </header>
 
-        {loading ? <p className="text-center text-gray-500 font-bold">Syncing...</p> : (
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-8">
+          {['all', 'like', 'comment'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`text-[10px] font-bold px-4 py-1 rounded-full border transition-all uppercase ${filter === tab ? 'bg-white text-black border-white' : 'border-white/10 text-gray-500'}`}
+            >
+              {tab === 'comment' ? 'Comments' : tab}
+            </button>
+          ))}
+        </div>
+
+        {loading && notifications.length === 0 ? (
+          <p className="text-center text-gray-500 font-bold">Syncing...</p>
+        ) : (
           <div className="space-y-4">
-            {notifications.length === 0 ? <p className="text-center text-gray-600 text-sm">No notifications yet.</p> : 
-              notifications.map(n => (
+            {filteredNotifications.length === 0 ? (
+              <p className="text-center text-gray-600 text-sm">No {filter !== 'all' ? filter : ''} notifications yet.</p>
+            ) : (
+              filteredNotifications.map(n => (
                 <div key={n.id} className={`p-4 rounded-2xl border transition-all ${n.is_read ? 'bg-transparent border-gray-800' : 'bg-[#2D3748] border-blue-500 shadow-lg'}`}>
                   <p className="text-sm">
-                    <span className="font-bold text-blue-400">{n.sender_name}</span> liked your post
-                    {n.articles?.title && <span className="block text-gray-400 italic mt-1">"{n.articles.title}"</span>}
+                    <span className="font-bold text-blue-400">{n.sender_name}</span>{" "}
+                    {n.type === 'reply' ? 'replied to your comment' : 
+                     n.type === 'comment' ? 'commented on your article' : 
+                     'liked your article'}
+                    {n.articles?.title && <span className="block text-gray-400 italic mt-1 text-xs">"{n.articles.title}"</span>}
                   </p>
                 </div>
               ))
-            }
+            )}
           </div>
         )}
       </div>
