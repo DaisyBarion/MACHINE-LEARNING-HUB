@@ -223,7 +223,7 @@ export default function Dashboard() {
             PUBLINKLY
           </span>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <NotificationBell />
 
             <button onClick={() => window.location.href = "/profile"} className="hover:text-gray-200 transition-colors">
@@ -345,7 +345,7 @@ export default function Dashboard() {
                       </div>
 
                       <div className="mt-6 pt-4 border-t border-gray-700">
-                        <div className="grid grid-cols-3 gap-35">
+                        <div className="grid grid-cols-3 gap-10">
                           {/* HEART BUTTON */}
                           <button 
                             onClick={(e) => toggleHeart(e, item.id)}
