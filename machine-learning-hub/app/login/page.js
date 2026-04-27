@@ -1,18 +1,13 @@
 "use client";
-import { createClient } from '@supabase/supabase-js';
 import { useState } from 'react';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../../lib/supabase';
 
 export default function AuthPage() {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [message, setMessage] = useState({ text: '', type: '' }); // Error/Success state
+  const [message, setMessage] = useState({ text: '', type: '' });
   const [loading, setLoading] = useState(false);
 
   const handleAction = async (e) => {
@@ -22,24 +17,17 @@ export default function AuthPage() {
 
     try {
       if (isRegister) {
-        // REGISTER LOGIC
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: fullName } }
         });
-
         if (error) throw error;
-
         setMessage({ text: "Registration Successful! Please login.", type: "success" });
-        setIsRegister(false); // Automatically switch back to login
+        setIsRegister(false);
       } else {
-
-        // LOGIN LOGIC 
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-
         if (error) throw error;
-
         window.location.href = '/dashboard';
       }
     } catch (err) {
@@ -50,53 +38,72 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4 font-sans text-black">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm border-t-8 border-[#C01818]">
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-          {isRegister ? "Create Account" : "User Login"}
-        </h2>
+    <div className="flex items-center justify-center min-h-screen bg-[#1A202C] p-4 font-sans text-white">
+      <div className="bg-[#2D3748] p-10 rounded-3xl shadow-2xl w-full max-w-md border border-gray-700">
+        <div className="text-center mb-8">
+          <h1 className="font-black text-3xl italic tracking-tighter text-[#2563EB] mb-2">
+            PUBLINKLY
+          </h1>
+          <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">
+            {isRegister ? "Join the Community" : "Welcome Back"}
+          </h2>
+        </div>
 
         {message.text && (
-          <div className={`mb-4 p-3 rounded text-sm font-medium ${
-            message.type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'
+          <div className={`mb-6 p-4 rounded-xl text-xs font-black uppercase tracking-wider border ${
+            message.type === 'error' 
+              ? 'bg-red-500/10 text-red-500 border-red-500/50' 
+              : 'bg-green-500/10 text-green-500 border-green-500/50'
           }`}>
             {message.text}
           </div>
         )}
         
-        <form onSubmit={handleAction} className="space-y-4">
+        <form onSubmit={handleAction} className="space-y-5">
           {isRegister && (
-            <input 
-              type="text" placeholder="Full Name" required
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full border p-3 rounded focus:ring-2 focus:ring-[#C01818] outline-none border-gray-300"
-            />
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest ml-1">Full Name</label>
+              <input 
+                type="text" placeholder="e.g. Snow Leviste" required
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-[#1A202C] border border-gray-700 p-4 rounded-xl focus:border-[#2563EB] outline-none transition-all text-sm"
+              />
+            </div>
           )}
-          <input 
-            type="email" placeholder="Email Address" required
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border p-3 rounded focus:ring-2 focus:ring-[#C01818] outline-none border-gray-300"
-          />
-          <input 
-            type="password" placeholder="Password" required
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border p-3 rounded focus:ring-2 focus:ring-[#C01818] outline-none border-gray-300"
-          />
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest ml-1">Email Address</label>
+            <input 
+              type="email" placeholder="name@example.com" required
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-[#1A202C] border border-gray-700 p-4 rounded-xl focus:border-[#2563EB] outline-none transition-all text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest ml-1">Password</label>
+            <input 
+              type="password" placeholder="••••••••" required
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-[#1A202C] border border-gray-700 p-4 rounded-xl focus:border-[#2563EB] outline-none transition-all text-sm"
+            />
+          </div>
           
           <button 
             disabled={loading}
-            className="w-full bg-[#C01818] text-white p-3 rounded font-bold hover:bg-[#a01414] transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
+            className="w-full bg-[#2563EB] text-white p-4 rounded-xl font-black uppercase tracking-widest text-sm hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 mt-4"
           >
-            {loading ? "Processing..." : (isRegister ? "Register" : "Login")}
+            {loading ? "Processing..." : (isRegister ? "Create Account" : "Sign In")}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          {!isRegister ? (
-            <p>Don't have an account? <button onClick={() => { setIsRegister(true); setMessage({text:'', type:''}); }} className="text-[#C01818] font-bold hover:underline cursor-pointer">Register</button></p>
-          ) : (
-            <p>Already have an account? <button onClick={() => { setIsRegister(false); setMessage({text:'', type:''}); }} className="text-[#C01818] font-bold hover:underline cursor-pointer">Login</button></p>
-          )}
+        <div className="mt-8 text-center">
+          <button 
+            onClick={() => { setIsRegister(!isRegister); setFullName(''); setMessage({text:'', type:''}); }} 
+            className="text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-[#2563EB] transition-colors"
+          >
+            {!isRegister ? "Don't have an account? Register" : "Already have an account? Login"}
+          </button>
         </div>
       </div>
     </div>
