@@ -287,7 +287,7 @@ export default function Dashboard() {
 
               <div className="relative z-10">
                 <span className="text-[8px] font-black text-blue-400 uppercase tracking-tighter">
-                  #{index + 1} Trending
+                 Trending
                 </span>
                 <h3 className="text-xs font-bold mt-1 leading-tight line-clamp-3 group-hover:text-blue-400 transition-colors">
                   {item.title}
