@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [activeArticle, setActiveArticle] = useState(null);
   const [user, setUser] = useState(null);
   const [notifCount, setNotifCount] = useState(0);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // 1. Initial Load
   useEffect(() => {
@@ -175,34 +176,62 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return alert("Login required!");
 
-    let finalImageUrl = formData.image; 
+    setIsPublishing(true); // Start loading state
 
-    if (formData.imageFile) {
-      const file = formData.imageFile;
-      const fileName = `${Date.now()}-${file.name}`;
-      const filePath = `article-covers/${fileName}`;
-      const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
-      if (uploadError) return alert("Upload failed: " + uploadError.message);
-      const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-      finalImageUrl = data.publicUrl;
-    }
+    try {
+      let finalImageUrl = formData.image; 
 
-    const { error } = await supabase.from('articles').insert([{ 
-      title: formData.title,
-      info: formData.info,
-      content: formData.content,
-      image: finalImageUrl, 
-      author_id: user.id,
-      author_name: userProfile?.full_name 
-    }]);
+      if (formData.imageFile) {
+        const file = formData.imageFile;
+        const fileName = `${Date.now()}-${file.name}`;
+        const filePath = `article-covers/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+        finalImageUrl = data.publicUrl;
+      }
 
-    if (!error) {
+      // 1. Insert article and select the data back to get the new ID
+      const { data: newArticle, error } = await supabase
+        .from('articles')
+        .insert([{ 
+          title: formData.title,
+          info: formData.info,
+          content: formData.content,
+          image: finalImageUrl, 
+          author_id: user.id,
+          author_name: userProfile?.full_name 
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // 2. Broadcast logic: Notify all users except the author
+      const { data: allUsers } = await supabase.from('profiles').select('id').neq('id', user.id);
+      
+      if (allUsers?.length > 0) {
+        const notifs = allUsers.map(profile => ({
+          receiver_id: profile.id,
+          sender_id: user.id,
+          sender_name: userProfile?.full_name,
+          type: 'publish',
+          article_id: newArticle.id,
+          is_read: false
+        }));
+        await supabase.from('notifications').insert(notifs);
+      }
+
+      // Success: Reset and Close
       setIsPosting(false);
       setPostStep(1);
       setFormData({ title: '', info: '', content: '', image: '', imageFile: null });
       fetchArticles(); 
-    } else {
-      alert("Database Error: " + error.message);
+
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsPublishing(false);
     }
   };
   
@@ -439,9 +468,12 @@ export default function Dashboard() {
               {postStep === 2 && <button onClick={() => setPostStep(1)} className="font-bold opacity-50 hover:opacity-100 transition-opacity">Back</button>}
               <button 
                 onClick={postStep === 1 ? () => setPostStep(2) : handlePublish} 
-                className="bg-[#2563EB] px-10 py-3 rounded-full font-black tracking-widest text-sm hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
+                disabled={isPublishing}
+                className={`bg-[#2563EB] px-10 py-3 rounded-full font-black tracking-widest text-sm transition-all shadow-lg active:scale-95 ${
+                  isPublishing ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
+                }`}
               >
-                {postStep === 1 ? "NEXT" : "PUBLISH NOW"}
+                {isPublishing ? "PUBLISHING..." : (postStep === 1 ? "NEXT" : "PUBLISH NOW")}
               </button>
             </div>
           </div>

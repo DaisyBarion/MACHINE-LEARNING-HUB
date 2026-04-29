@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 export default function NotifPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // 'all', 'like', 'comment'
+  const [filter, setFilter] = useState('all'); 
   const router = useRouter();
   const channelRef = useRef(null);
 
@@ -77,7 +77,6 @@ export default function NotifPage() {
     };
   }, []);
 
-  // Logic to filter the notifications shown in the UI
   const filteredNotifications = notifications.filter(n => {
     if (filter === 'all') return true;
     if (filter === 'like') return n.type === 'react' || n.type === 'like';
@@ -93,7 +92,6 @@ export default function NotifPage() {
           <button onClick={() => router.push("/dashboard")} className="text-[10px] font-black border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all">BACK</button>
         </header>
 
-        {/* Filter Tabs */}
         <div className="flex gap-2 mb-8">
           {['all', 'like', 'comment'].map((tab) => (
             <button
@@ -111,16 +109,29 @@ export default function NotifPage() {
         ) : (
           <div className="space-y-4">
             {filteredNotifications.length === 0 ? (
-              <p className="text-center text-gray-600 text-sm">No {filter !== 'all' ? filter : ''} notifications yet.</p>
+              <p className="text-center text-gray-600 text-sm">No notifications yet.</p>
             ) : (
               filteredNotifications.map(n => (
                 <div key={n.id} className={`p-4 rounded-2xl border transition-all ${n.is_read ? 'bg-transparent border-gray-800' : 'bg-[#2D3748] border-blue-500 shadow-lg'}`}>
                   <p className="text-sm">
                     <span className="font-bold text-blue-400">{n.sender_name}</span>{" "}
-                    {n.type === 'reply' ? 'replied to your comment' : 
-                     n.type === 'comment' ? 'commented on your article' : 
-                     'liked your article'}
-                    {n.articles?.title && <span className="block text-gray-400 italic mt-1 text-xs">"{n.articles.title}"</span>}
+                    
+                    {/* Logic for Like, Comment, Reply, and the new Publish broadcast */}
+                    {n.type === 'publish' ? (
+                      "published a new article"
+                    ) : n.type === 'reply' ? (
+                      "replied to your comment"
+                    ) : n.type === 'comment' ? (
+                      "commented on your article"
+                    ) : (
+                      "liked your article"
+                    )}
+
+                    {n.articles?.title && (
+                      <span className="block text-gray-400 italic mt-1 text-xs">
+                        "{n.articles.title}"
+                      </span>
+                    )}
                   </p>
                 </div>
               ))

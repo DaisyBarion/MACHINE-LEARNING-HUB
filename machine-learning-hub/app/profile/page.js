@@ -90,12 +90,25 @@ export default function ProfilePage() {
 
   const deleteArticle = async () => {
     if (!articleToDelete) return;
-    const { error } = await supabase.from('articles').delete().eq('id', articleToDelete);
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
-      setUserArticles(userArticles.filter(a => a.id !== articleToDelete));
+
+    try {
+      // With CASCADE enabled, Supabase automatically wipes 
+      // linked comments, reacts, and notifications for you.
+      const { error } = await supabase
+        .from('articles')
+        .delete()
+        .eq('id', articleToDelete);
+
+      if (error) throw error;
+
+      // Update UI state
+      setUserArticles(prev => prev.filter(a => a.id !== articleToDelete));
       setArticleToDelete(null);
+
+    } catch (e) {
+      // Stringify the error to see details if RLS on 'articles' is the issue
+      console.error("Delete failed:", JSON.stringify(e));
+      setErrorMessage(e.message || "Check your 'Delete' policy on the articles table.");
     }
   };
 
