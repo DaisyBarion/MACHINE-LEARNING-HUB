@@ -100,72 +100,66 @@ export default function Dashboard() {
   };
 
   const toggleHeart = async (e, articleId) => {
-  e.stopPropagation(); 
-  if (!userProfile?.id) return alert("Login required!");
+    e.stopPropagation(); 
+    if (!userProfile?.id) return alert("Login required!");
 
-  const isLiked = userReacts.has(articleId);
-  const targetArticle = articles.find(a => a.id === articleId);
+    const isLiked = userReacts.has(articleId);
+    const targetArticle = articles.find(a => a.id === articleId);
 
-  // 1. Optimistic UI Update
-  setUserReacts(prev => {
-    const next = new Set(prev);
-    isLiked ? next.delete(articleId) : next.add(articleId);
-    return next;
-  });
+    // 1. Optimistic UI Update (Clean & Simple)
+    setUserReacts(prev => {
+      const next = new Set(prev);
+      isLiked ? next.delete(articleId) : next.add(articleId);
+      return next;
+    });
 
-  setArticles(prev => prev.map(art => 
-    art.id === articleId 
-      ? { ...art, heartCount: isLiked ? Math.max(0, art.heartCount - 1) : art.heartCount + 1 }
-      : art
-  ));
+    setArticles(prev => prev.map(art => 
+      art.id === articleId 
+        ? { ...art, heartCount: isLiked ? Math.max(0, art.heartCount - 1) : art.heartCount + 1 }
+        : art
+    ));
 
-  // 2. Database Sync
-  if (isLiked) {
-    // Remove the heart from the reacts table
-    await supabase
-      .from('reacts')
-      .delete()
-      .eq('article_id', articleId)
-      .eq('user_id', userProfile.id); 
-
-    // Remove ONLY the 'react' notification (Leave comments alone!)
-    if (targetArticle) {
+    // 2. Database Sync
+    if (isLiked) {
+      // HEART UNDO: Delete the heart. 
+      // Cascade Delete will automatically remove the notification!
       await supabase
-        .from('notifications')
+        .from('reacts')
         .delete()
-        .eq('receiver_id', targetArticle.author_id)
-        .eq('sender_id', userProfile.id)
         .eq('article_id', articleId)
-        .eq('type', 'react'); // This is the shield for your comments
-    }
+        .eq('user_id', userProfile.id); 
+
     } else {
-    // 1. Record the heart
-    await supabase
-      .from('reacts')
-      .insert([{ article_id: articleId, user_id: userProfile.id }]);
+      // 1. Record the heart AND capture the new ID to prevent NULLs
+      const { data: newReact, error: reactError } = await supabase
+        .from('reacts')
+        .insert([{ article_id: articleId, user_id: userProfile.id }])
+        .select()
+        .single();
 
-    if (targetArticle && targetArticle.author_id !== userProfile.id) {
-      // 2. CLEAR OLD NOTIFS FIRST (The "Redo" fix)
-      await supabase
-        .from('notifications')
-        .delete()
-        .eq('receiver_id', targetArticle.author_id)
-        .eq('sender_id', userProfile.id)
-        .eq('article_id', articleId)
-        .eq('type', 'react'); 
+      if (!reactError && targetArticle && targetArticle.author_id !== userProfile.id) {
+        // 2. Clear any old 'react' notifs to prevent duplicates
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('receiver_id', targetArticle.author_id)
+          .eq('sender_id', userProfile.id)
+          .eq('article_id', articleId)
+          .eq('type', 'react'); 
 
-      // 3. INSERT FRESH NOTIF
-      await supabase.from('notifications').insert([{
-        receiver_id: targetArticle.author_id,
-        sender_id: userProfile.id,
-        sender_name: userProfile.full_name,
-        type: 'react',
-        article_id: articleId,
-        is_read: false
-      }]);
+        // 3. INSERT FRESH NOTIF with the linked react_id
+        await supabase.from('notifications').insert([{
+          receiver_id: targetArticle.author_id,
+          sender_id: userProfile.id,
+          sender_name: userProfile.full_name,
+          type: 'react',
+          article_id: articleId,
+          react_id: newReact.id, // Successfully linked
+          is_read: false
+        }]);
+      }
     }
-  }
-};
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
