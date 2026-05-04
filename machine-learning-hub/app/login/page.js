@@ -23,7 +23,7 @@ export default function AuthPage() {
           options: { data: { full_name: fullName } }
         });
         if (error) throw error;
-        setMessage({ text: "Registration Successful! <br> Please check your email and confirm your account to login.", type: "success" });
+        setMessage({ text: "Registration Successful! Please check your email and confirm your account to login.", type: "success" });
         setIsRegister(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
